@@ -3,7 +3,6 @@ package test
 import (
 	"io/ioutil"
 	"os"
-	"path/filepath"
 	"testing"
 
 	"github.com/go-git/go-billy/v5"
@@ -25,9 +24,7 @@ func MakeTempGitDir(t *testing.T) (string, billy.Filesystem) {
 	t.Cleanup(func() {
 		os.RemoveAll(dir)
 	})
-	// This is needed to ensure that the .git directory is created inside the
-	// repo dir.
-	_, err = git.PlainInit(filepath.Join(dir, ".git"), true)
+	_, err = git.PlainInit(dir, false)
 	if err != nil {
 		t.Fatal(err)
 	}

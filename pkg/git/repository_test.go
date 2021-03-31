@@ -10,7 +10,6 @@ import (
 	"github.com/go-git/go-billy/v5"
 	"github.com/go-git/go-billy/v5/osfs"
 	"github.com/go-git/go-git/v5"
-	"github.com/go-git/go-git/v5/config"
 	"github.com/go-git/go-git/v5/plumbing"
 	"github.com/go-git/go-git/v5/plumbing/object"
 	"github.com/go-git/go-git/v5/utils/merkletrie"
@@ -19,12 +18,12 @@ import (
 
 const (
 	testFilename = "path/to/testing.yaml"
-	testBranch   = "main"
+	testBranch   = "testing"
 )
 
 func TestWriteFile(t *testing.T) {
 	tmpDir, bfs := makeTempDir(t)
-	g, err := New(tmpDir, testBranch)
+	g, err := New(tmpDir)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -57,8 +56,12 @@ func TestWriteFile(t *testing.T) {
 
 func TestCommit(t *testing.T) {
 	tmpDir, _ := makeTempDir(t)
-	g, err := New(tmpDir, testBranch)
+	g, err := New(tmpDir)
 	if err != nil {
+		t.Fatal(err)
+	}
+
+	if err := g.CreateAndSwitchBranch(testBranch); err != nil {
 		t.Fatal(err)
 	}
 	otherFilename := "test/path.yaml"
@@ -69,13 +72,7 @@ func TestCommit(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	opts := &git.CommitOptions{
-		Author: &object.Signature{
-			Email: "test@example.com",
-			Name:  "Testing",
-			When:  time.Now(),
-		},
-	}
+	opts := makeOpts(-1 * time.Minute)
 	sha, err := g.Commit("test commit", opts)
 	if err != nil {
 		t.Fatal(err)
@@ -104,36 +101,31 @@ func TestCommit(t *testing.T) {
 
 func TestCommitNewBranch(t *testing.T) {
 	tmpDir, _ := makeTempDir(t)
-	opts := &git.CommitOptions{
-		Author: &object.Signature{
-			Email: "test@example.com",
-			Name:  "Testing",
-			When:  time.Now(),
-		},
-	}
-
-	g, err := New(tmpDir, testBranch)
+	g, err := New(tmpDir)
 	if err != nil {
+		t.Fatal(err)
+	}
+	if err := g.CreateAndSwitchBranch(testBranch); err != nil {
 		t.Fatal(err)
 	}
 	if err := g.WriteFile(testFilename, []byte(`testing: value\n`), 0644); err != nil {
 		t.Fatal(err)
 	}
-	_, err = g.Commit("test commit", opts)
+
+	_, err = g.Commit("test commit", makeOpts(-1*time.Minute))
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	otherFilename := "test/path.yaml"
-	g, err = New(tmpDir, "other")
-	if err != nil {
+	if err := g.CreateAndSwitchBranch("other"); err != nil {
 		t.Fatal(err)
 	}
 	if err := g.WriteFile(otherFilename, []byte(`second: value\n`), 0600); err != nil {
 		t.Fatal(err)
 	}
 
-	sha, err := g.Commit("second commit", opts)
+	sha, err := g.Commit("second commit", makeOpts(-1*time.Minute))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -155,7 +147,6 @@ func TestCommitNewBranch(t *testing.T) {
 func assertFilesCommitted(t *testing.T, commit *object.Commit, want []string) {
 	t.Helper()
 	found := []string{}
-
 	currentDirState, err := commit.Tree()
 	if err != nil {
 		t.Fatalf("failed to get tree for commit: %s", err)
@@ -213,20 +204,37 @@ func makeTempDir(t *testing.T) (string, billy.Filesystem) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	mainRef := plumbing.NewBranchReferenceName(testBranch)
-	err = r.Storer.SetReference(plumbing.NewSymbolicReference(plumbing.HEAD, mainRef))
+	w, err := r.Worktree()
 	if err != nil {
 		t.Fatal(err)
 	}
-	err = r.CreateBranch(&config.Branch{
-		Name: testBranch,
+	f, err := w.Filesystem.Create("README.md")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := f.Write([]byte("Just a test")); err != nil {
+		t.Fatal(err)
+	}
+	_, err = w.Add("README.md")
+	_, err = w.Commit("initial commit", &git.CommitOptions{
+		Author: &object.Signature{
+			Name:  "Testing",
+			Email: "test@example.com",
+			When:  time.Now(),
+		},
 	})
 	if err != nil {
 		t.Fatal(err)
 	}
-	_, err = r.Branch(testBranch)
-	if err != nil {
-		t.Fatal(err)
-	}
 	return dir, osfs.New(dir)
+}
+
+func makeOpts(d time.Duration) *git.CommitOptions {
+	return &git.CommitOptions{
+		Author: &object.Signature{
+			Email: "test@example.com",
+			Name:  "Testing",
+			When:  time.Now().Add(d),
+		},
+	}
 }

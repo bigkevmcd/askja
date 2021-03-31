@@ -2,7 +2,6 @@ package git
 
 import (
 	"fmt"
-	"log"
 	"os"
 
 	"github.com/go-git/go-git/v5"
@@ -14,58 +13,45 @@ import (
 // repository.
 type Repository struct {
 	*git.Repository
+	wt *git.Worktree
 }
 
 // New creates and returns a new Repository rooted at the provided base path.
-func New(p, branch string) (*Repository, error) {
-	r, err := git.PlainOpen(p)
+func New(root string) (*Repository, error) {
+	r, err := git.PlainOpen(root)
 	if err != nil {
-		return nil, fmt.Errorf("failed to open path %q as a git repository: %w", p, err)
+		return nil, fmt.Errorf("failed to open path %q as a git repository: %w", root, err)
 	}
-	branchRef := plumbing.NewBranchReferenceName(branch)
-	// // If we get an error trying to get a Head reference this is likely an empty
-	// // repository, with no commits, so it creates a new reference.
-	var h *plumbing.Reference
-	headRef, err := r.Head()
-	if err != nil {
-		if err != plumbing.ErrReferenceNotFound {
-			return nil, fmt.Errorf("failed to get the HEAD for the repository: %w", err)
-		}
-		h = plumbing.NewSymbolicReference(plumbing.HEAD, branchRef)
-	} else {
-		h = plumbing.NewHashReference(branchRef, headRef.Hash())
-	}
-
-	if err := r.Storer.SetReference(h); err != nil {
-		return nil, fmt.Errorf("failed to store the branch %q: %w", branch, err)
-	}
-
-	// TODO: extract to a function
-	_, err = r.Branch(branch)
-	if err != nil {
-		if err != git.ErrBranchNotFound {
-			return nil, fmt.Errorf("failed to query for branch %q: %w", branch, err)
-		}
-		err = r.CreateBranch(&config.Branch{
-			Name:  branch,
-			Merge: branchRef,
-		})
-		if err != nil {
-			return nil, fmt.Errorf("failed to create branch %q: %w", branch, err)
-		}
-	}
-
 	w, err := r.Worktree()
 	if err != nil {
 		return nil, fmt.Errorf("failed to create a Worktree: %w", err)
 	}
+	return &Repository{Repository: r, wt: w}, nil
+}
 
-	log.Printf("KEVIN!!!!!! %s and %s but %s", headRef, branchRef, h)
-
-	if err := w.Checkout(&git.CheckoutOptions{Branch: branchRef}); err != nil {
-		return nil, fmt.Errorf("failed to checkout the branch %q (%s): %w", branch, branchRef, err)
+// CreateAndSwitchBranch switches from the current branch to the
+// one with the name provided.
+func (r *Repository) CreateAndSwitchBranch(name string) error {
+	branchRef := plumbing.NewBranchReferenceName(name)
+	if err := r.Repository.CreateBranch(&config.Branch{
+		Name:  name,
+		Merge: branchRef,
+	}); err != nil {
+		return fmt.Errorf("failed to create branch %q: %w", name, err)
 	}
-	return &Repository{Repository: r}, nil
+	h, err := r.Head()
+	if err != nil {
+		return fmt.Errorf("failed to get the HEAD: %w", err)
+	}
+	ref := plumbing.NewHashReference(branchRef, h.Hash())
+	err = r.Storer.SetReference(ref)
+	if err != nil {
+		return fmt.Errorf("failed to SetReference to %s: %w", ref, err)
+	}
+	if err := r.wt.Checkout(&git.CheckoutOptions{Branch: branchRef}); err != nil {
+		return fmt.Errorf("failed to switch to branch %q: %w", name, err)
+	}
+	return nil
 }
 
 // WriteFile writes data to the named file, creating it if necessary.
@@ -75,11 +61,7 @@ func New(p, branch string) (*Repository, error) {
 //
 // The file is also "git added" to the current worktree.
 func (r *Repository) WriteFile(name string, data []byte, perm os.FileMode) error {
-	w, err := r.Worktree()
-	if err != nil {
-		return fmt.Errorf("failed to create worktree: %w", err)
-	}
-	f, err := w.Filesystem.OpenFile(name, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, perm)
+	f, err := r.wt.Filesystem.OpenFile(name, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, perm)
 	if err != nil {
 		return fmt.Errorf("failed to open file %q: %w", name, err)
 	}
@@ -88,7 +70,7 @@ func (r *Repository) WriteFile(name string, data []byte, perm os.FileMode) error
 	if err != nil {
 		return fmt.Errorf("failed to write data to file %q: %w", name, err)
 	}
-	_, err = w.Add(name)
+	_, err = r.wt.Add(name)
 	if err != nil {
 		return fmt.Errorf("failed to add file %q: %w", name, err)
 	}
@@ -99,11 +81,7 @@ func (r *Repository) WriteFile(name string, data []byte, perm os.FileMode) error
 //
 // It returns the sha of the commit.
 func (r *Repository) Commit(msg string, opts *git.CommitOptions) (string, error) {
-	w, err := r.Worktree()
-	if err != nil {
-		return "", fmt.Errorf("failed to get a Worktree: %w", err)
-	}
-	c, err := w.Commit(msg, opts)
+	c, err := r.wt.Commit(msg, opts)
 	if err != nil {
 		return "", fmt.Errorf("failed to commit: %w", err)
 	}

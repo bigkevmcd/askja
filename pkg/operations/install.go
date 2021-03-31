@@ -45,7 +45,8 @@ func InstallProfile(ctx context.Context, path string, options *InstallOptions) e
 
 	result := profiles.MakeArtifacts(p, options.ProfileOptions)
 
-	g, err := git.New(path, options.NewBranchName)
+	g, err := git.New(path)
+	g.CreateAndSwitchBranch(options.NewBranchName)
 	for _, v := range result {
 		b, err := yaml.Marshal(v)
 		if err != nil {
