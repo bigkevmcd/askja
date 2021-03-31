@@ -1,0 +1,10 @@
+apiVersion: profiles.fluxcd.io/v1alpha1
+kind: Profile
+metadata:
+  name: nginx
+spec:
+  description: Profile for deploying nginx
+  version: v0.0.1
+  artifacts:
+    - name: nginx-server
+      path: nginx/chart
