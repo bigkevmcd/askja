@@ -6,13 +6,16 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/go-git/go-git/v5"
+	"github.com/google/go-cmp/cmp"
+
 	"github.com/bigkevmcd/askja/pkg/profiles"
 	"github.com/bigkevmcd/askja/test"
 )
 
 func TestInstallProfile(t *testing.T) {
 	client := newMockClient()
-	dir, _ := test.MakeTempGitDir(t)
+	dir, _ := test.MakeTempGitRepo(t)
 	DefaultClientFactory = func(s string) (Client, error) {
 		if s == "https://github.com/weaveworks/nginx-profile.git" {
 			return client, nil
@@ -32,16 +35,24 @@ spec:
       path: nginx/chart
 `))
 
-	if err := InstallProfile(context.TODO(), dir, &InstallOptions{ProfileOptions: &profiles.ProfileOptions{
-		ProfileURL: "https://github.com/weaveworks/nginx-profile.git",
-		Branch:     "main",
-	},
-		NewBranchName: "test-branch",
-	}); err != nil {
+	if err := InstallProfile(context.TODO(), dir,
+		&InstallOptions{
+			ProfileOptions: &profiles.ProfileOptions{
+				ProfileURL: "https://github.com/weaveworks/nginx-profile.git",
+				Branch:     "main",
+			},
+			NewBranchName: "test-branch",
+		}); err != nil {
 		t.Fatal(err)
 	}
-
-	// TODO: test the remainder
+	committed := readFilesFromHead(t, dir)
+	want := []string{
+		"gitrepository_subscription-nginx-profile-main.yaml",
+		"helmrelease_subscription-helm-release-nginx-server.yaml",
+	}
+	if diff := cmp.Diff(want, filenamesFrom(committed)); diff != "" {
+		t.Fatalf("written files don't match:\n%s", diff)
+	}
 }
 
 func newMockClient() *mockClient {
@@ -66,4 +77,29 @@ func (m *mockClient) add(repo, path, ref string, content []byte) {
 
 func key(s ...string) string {
 	return strings.Join(s, ":")
+}
+
+func readFilesFromHead(t *testing.T, dir string) map[string][]byte {
+	t.Helper()
+	r, err := git.PlainOpen(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	head, err := r.Head()
+	if err != nil {
+		t.Fatal(err)
+	}
+	co, err := r.CommitObject(head.Hash())
+	if err != nil {
+		t.Fatal(err)
+	}
+	return test.GetFilesInCommit(t, co, dir)
+}
+
+func filenamesFrom(m map[string][]byte) []string {
+	f := []string{}
+	for k := range m {
+		f = append(f, k)
+	}
+	return f
 }

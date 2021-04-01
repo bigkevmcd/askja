@@ -57,7 +57,7 @@ func createGitRepository(p *Profile, opts *ProfileOptions) *sourcev1beta1.GitRep
 func createHelmRelease(p *Profile, opts *ProfileOptions) *helmv2beta1.HelmRelease {
 	return &helmv2beta1.HelmRelease{
 		ObjectMeta: metav1.ObjectMeta{
-			Name: makeHelmReleaseName(p),
+			Name: makeHelmReleaseName(p.Spec.Artifacts[0]),
 		},
 		TypeMeta: metav1.TypeMeta{
 			Kind:       helmReleaseKind,
@@ -80,13 +80,10 @@ func createHelmRelease(p *Profile, opts *ProfileOptions) *helmv2beta1.HelmReleas
 	// 	if err != nil {
 	// 		return fmt.Errorf("failed to set resource ownership: %w", err)
 	// 	}
-
-	// 	p.log.Info("creating HelmRelease", "resource", helmReleasename)
-	// 	return p.client.Create(ctx, &helmRelease)
 }
 
-func makeHelmReleaseName(p *Profile) string {
-	return join("subscription", "helm-release", p.Spec.Artifacts[0].Name)
+func makeHelmReleaseName(a Artifact) string {
+	return join("subscription", "helm-release", a.Name)
 }
 
 // TODO: error if this is more than 63 chars long.

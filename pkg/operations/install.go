@@ -37,12 +37,14 @@ func InstallProfile(ctx context.Context, path string, options *InstallOptions) e
 	if err != nil {
 		return err
 	}
-	bytes, err := client.FileContents(ctx, repo, "profile.yaml", "main")
-	p, err := profiles.ParseBytes(bytes)
+	b, err := client.FileContents(ctx, repo, "profile.yaml", "main")
 	if err != nil {
 		return err
 	}
-
+	p, err := profiles.ParseBytes(b)
+	if err != nil {
+		return err
+	}
 	result := profiles.MakeArtifacts(p, options.ProfileOptions)
 
 	g, err := git.New(path)
@@ -60,6 +62,10 @@ func InstallProfile(ctx context.Context, path string, options *InstallOptions) e
 			return fmt.Errorf("failed to write to file %q in %q: %w", output, path, err)
 		}
 	}
+	_, err = g.Commit("Add Profile files", &git.CommitOptions{})
+	if err != nil {
+		return fmt.Errorf("failed to commit changes to local-repo: %w", err)
+	}
 	return nil
 }
 
@@ -69,5 +75,5 @@ func extractRepo(profileURL string) (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("failed to parse profileURL %q: %w", profileURL, err)
 	}
-	return strings.TrimSuffix(parsed.Path, ".git"), nil
+	return strings.TrimPrefix(strings.TrimSuffix(parsed.Path, ".git"), "/"), nil
 }
