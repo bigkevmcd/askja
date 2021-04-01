@@ -3,7 +3,7 @@ package profiles
 import (
 	"testing"
 
-	// helmv2beta1 "github.com/fluxcd/helm-controller/api/v2beta1"
+	helmv2beta1 "github.com/fluxcd/helm-controller/api/v2beta1"
 	sourcev1beta1 "github.com/fluxcd/source-controller/api/v1beta1"
 	"github.com/google/go-cmp/cmp"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -25,6 +25,21 @@ func TestMakeArtifacts(t *testing.T) {
 			Spec: sourcev1beta1.GitRepositorySpec{
 				URL:       "https://example.com/testing/testing.git",
 				Reference: &sourcev1beta1.GitRepositoryRef{Branch: "main"},
+			},
+		},
+		&helmv2beta1.HelmRelease{
+			TypeMeta:   metav1.TypeMeta{Kind: "HelmRelease", APIVersion: "helm.toolkit.fluxcd.io/v2beta1"},
+			ObjectMeta: metav1.ObjectMeta{Name: "subscription-helm-release-test-chart"},
+			Spec: helmv2beta1.HelmReleaseSpec{
+				Chart: helmv2beta1.HelmChartTemplate{
+					Spec: helmv2beta1.HelmChartTemplateSpec{
+						Chart: "artifacts",
+						SourceRef: helmv2beta1.CrossNamespaceObjectReference{
+							Kind: "GitRepository",
+							Name: "subscription-testing-main",
+						},
+					},
+				},
 			},
 		},
 	}

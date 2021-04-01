@@ -3,6 +3,7 @@ module github.com/bigkevmcd/askja
 go 1.16
 
 require (
+	github.com/fluxcd/helm-controller/api v0.9.0
 	github.com/fluxcd/source-controller/api v0.10.0
 	github.com/go-git/go-billy/v5 v5.1.0
 	github.com/go-git/go-git/v5 v5.3.0

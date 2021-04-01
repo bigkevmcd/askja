@@ -6,7 +6,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 
-	// helmv2beta1 "github.com/fluxcd/helm-controller/api/v2beta1"
+	helmv2beta1 "github.com/fluxcd/helm-controller/api/v2beta1"
 	sourcev1beta1 "github.com/fluxcd/source-controller/api/v1beta1"
 )
 
@@ -28,8 +28,7 @@ type ProfileOptions struct {
 func MakeArtifacts(p *Profile, opts *ProfileOptions) []runtime.Object {
 	objects := []runtime.Object{}
 	objects = append(objects, createGitRepository(p, opts))
-	// objects = append(objects, createHelmRelease())
-
+	objects = append(objects, createHelmRelease(p, opts))
 	return objects
 }
 
@@ -55,47 +54,39 @@ func createGitRepository(p *Profile, opts *ProfileOptions) *sourcev1beta1.GitRep
 	// }
 }
 
-// func (p *Profile) createHelmRelease(ctx context.Context) error {
-// 	namespace := p.subscription.Namespace
-// 	helmReleasename := p.makeHelmReleaseName()
-// 	helmRelease := helmv2.HelmRelease{
-// 		ObjectMeta: metav1.ObjectMeta{
-// 			Name:      helmReleasename,
-// 			Namespace: namespace,
-// 		},
-// 		TypeMeta: metav1.TypeMeta{
-// 			Kind:       helmReleaseKind,
-// 			APIVersion: helmReleaseAPIVersion,
-// 		},
-// 		Spec: helmv2.HelmReleaseSpec{
-// 			Chart: helmv2.HelmChartTemplate{
-// 				Spec: helmv2.HelmChartTemplateSpec{
-// 					// TODO obvs don't rely on index 0
-// 					Chart: p.definition.Spec.Artifacts[0].Path,
-// 					SourceRef: helmv2.CrossNamespaceObjectReference{
-// 						Kind:      gitRepositoryKind,
-// 						Name:      p.makeGitRepoName(),
-// 						Namespace: namespace,
-// 					},
-// 				},
-// 			},
-// 		},
-// 	}
-// 	err := controllerutil.SetControllerReference(&p.subscription, &helmRelease, p.client.Scheme())
-// 	if err != nil {
-// 		return fmt.Errorf("failed to set resource ownership: %w", err)
-// 	}
+func createHelmRelease(p *Profile, opts *ProfileOptions) *helmv2beta1.HelmRelease {
+	return &helmv2beta1.HelmRelease{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: makeHelmReleaseName(p),
+		},
+		TypeMeta: metav1.TypeMeta{
+			Kind:       helmReleaseKind,
+			APIVersion: helmReleaseAPIVersion,
+		},
+		Spec: helmv2beta1.HelmReleaseSpec{
+			Chart: helmv2beta1.HelmChartTemplate{
+				Spec: helmv2beta1.HelmChartTemplateSpec{
+					// TODO obvs don't rely on index 0
+					Chart: p.Spec.Artifacts[0].Path,
+					SourceRef: helmv2beta1.CrossNamespaceObjectReference{
+						Kind: gitRepositoryKind,
+						Name: makeGitRepoName(opts.ProfileURL, opts.Branch),
+					},
+				},
+			},
+		},
+	}
+	// 	err := controllerutil.SetControllerReference(&p.subscription, &helmRelease, p.client.Scheme())
+	// 	if err != nil {
+	// 		return fmt.Errorf("failed to set resource ownership: %w", err)
+	// 	}
 
-// 	p.log.Info("creating HelmRelease", "resource", helmReleasename)
-// 	return p.client.Create(ctx, &helmRelease)
-// }
+	// 	p.log.Info("creating HelmRelease", "resource", helmReleasename)
+	// 	return p.client.Create(ctx, &helmRelease)
+}
 
-// func (p *Profile) makeHelmReleaseName() string {
-// 	return join(p.subscription.Name, p.definition.Name, p.definition.Spec.Artifacts[0].Name)
-// }
-
-func join(s ...string) string {
-	return strings.Join(s, "-")
+func makeHelmReleaseName(p *Profile) string {
+	return join("subscription", "helm-release", p.Spec.Artifacts[0].Name)
 }
 
 // TODO: error if this is more than 63 chars long.
@@ -103,4 +94,8 @@ func makeGitRepoName(profileURL, branch string) string {
 	repoParts := strings.Split(profileURL, "/")
 	repoName := strings.TrimSuffix(repoParts[len(repoParts)-1], ".git")
 	return join("subscription", repoName, branch)
+}
+
+func join(s ...string) string {
+	return strings.Join(s, "-")
 }
