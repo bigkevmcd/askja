@@ -49,7 +49,6 @@ func MakeCmd() *cobra.Command {
 }
 
 func generateProfileResources(opts *profiles.ProfileOptions) error {
-	log.Printf("generating profile resources %v\n", opts)
 	cwd, err := os.Getwd()
 	if err != nil {
 		return fmt.Errorf("failed to get the working directory: %w", err)

@@ -9,6 +9,8 @@ import (
 	"github.com/go-git/go-git/v5/plumbing"
 )
 
+type CommitOptions = git.CommitOptions
+
 // Repository is a struct that provides a simplified interface to a git
 // repository.
 type Repository struct {

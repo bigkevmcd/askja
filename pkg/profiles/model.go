@@ -16,6 +16,17 @@ type Artifact struct {
 	Name string `json:"name,omitempty"`
 	// Path is the local path to the Artifact in the Profile repo
 	Path string `json:"path,omitempty"`
+
+	// Chart is a spec for creating a HelmRelease/HelmRepository combination
+	Chart *HelmChartSpec `json:"helm,omitempty"`
+}
+
+// HelmChartSpec allows the installation of a HelmChart from a Helm chart
+// server.
+type HelmChartSpec struct {
+	Chart      string `json:"chart"`
+	Repository string `json:"repository"`
+	Version    string `json:"version"`
 }
 
 // Profile is the Schema for the profiles API

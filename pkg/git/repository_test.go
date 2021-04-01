@@ -3,12 +3,10 @@ package git
 import (
 	"io"
 	"io/ioutil"
-	"os"
 	"testing"
 	"time"
 
-	"github.com/go-git/go-billy/v5"
-	"github.com/go-git/go-billy/v5/osfs"
+	"github.com/bigkevmcd/askja/test"
 	"github.com/go-git/go-git/v5"
 	"github.com/go-git/go-git/v5/plumbing"
 	"github.com/go-git/go-git/v5/plumbing/object"
@@ -22,7 +20,7 @@ const (
 )
 
 func TestWriteFile(t *testing.T) {
-	tmpDir, bfs := makeTempDir(t)
+	tmpDir, bfs := test.MakeTempGitRepo(t)
 	g, err := New(tmpDir)
 	if err != nil {
 		t.Fatal(err)
@@ -55,7 +53,7 @@ func TestWriteFile(t *testing.T) {
 }
 
 func TestCommit(t *testing.T) {
-	tmpDir, _ := makeTempDir(t)
+	tmpDir, _ := test.MakeTempGitRepo(t)
 	g, err := New(tmpDir)
 	if err != nil {
 		t.Fatal(err)
@@ -100,7 +98,7 @@ func TestCommit(t *testing.T) {
 }
 
 func TestCommitNewBranch(t *testing.T) {
-	tmpDir, _ := makeTempDir(t)
+	tmpDir, _ := test.MakeTempGitRepo(t)
 	g, err := New(tmpDir)
 	if err != nil {
 		t.Fatal(err)
@@ -189,44 +187,6 @@ func assertFilesCommitted(t *testing.T, commit *object.Commit, want []string) {
 	if diff := cmp.Diff(want, found); diff != "" {
 		t.Fatalf("failed to get the committed files:\n%s", diff)
 	}
-}
-
-func makeTempDir(t *testing.T) (string, billy.Filesystem) {
-	t.Helper()
-	dir, err := ioutil.TempDir("", "askja")
-	if err != nil {
-		t.Fatal(err)
-	}
-	t.Cleanup(func() {
-		os.RemoveAll(dir)
-	})
-	r, err := git.PlainInit(dir, false)
-	if err != nil {
-		t.Fatal(err)
-	}
-	w, err := r.Worktree()
-	if err != nil {
-		t.Fatal(err)
-	}
-	f, err := w.Filesystem.Create("README.md")
-	if err != nil {
-		t.Fatal(err)
-	}
-	if _, err := f.Write([]byte("Just a test")); err != nil {
-		t.Fatal(err)
-	}
-	_, err = w.Add("README.md")
-	_, err = w.Commit("initial commit", &git.CommitOptions{
-		Author: &object.Signature{
-			Name:  "Testing",
-			Email: "test@example.com",
-			When:  time.Now(),
-		},
-	})
-	if err != nil {
-		t.Fatal(err)
-	}
-	return dir, osfs.New(dir)
 }
 
 func makeOpts(d time.Duration) *git.CommitOptions {
