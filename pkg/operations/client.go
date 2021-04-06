@@ -36,6 +36,8 @@ func NewClientError(code int, message string) ClientError {
 	return ClientError{StatusCode: code, Message: message}
 }
 
+// RawGitHubClient is a very naive client that fetches files via
+// raw.githubusercontent.com, without authentication.
 type RawGitHubClient struct {
 	*http.Client
 }
@@ -48,6 +50,7 @@ func NewRawGitHubClient(c *http.Client) *RawGitHubClient {
 	return &RawGitHubClient{Client: c}
 }
 
+// FileContents implements the Client interface.
 func (c RawGitHubClient) FileContents(ctx context.Context, repo, path, ref string) ([]byte, error) {
 	fileURL := fmt.Sprintf("https://raw.githubusercontent.com/%s/%s/%s", repo, ref, path)
 	resp, err := c.Client.Get(fileURL)
@@ -65,6 +68,8 @@ func (c RawGitHubClient) FileContents(ctx context.Context, repo, path, ref strin
 	return b, nil
 }
 
+// RawGitHubClientFactory is a very simple client that only supports fetching
+// via github.com (and only unauthenticated requests).
 func RawGitHubClientFactory(repoURL string) (Client, error) {
 	parsed, err := url.Parse(repoURL)
 	if err != nil {

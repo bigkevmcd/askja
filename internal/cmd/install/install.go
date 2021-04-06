@@ -13,12 +13,15 @@ import (
 )
 
 const (
-	profileURLParam = "profile-url"
-	branchNameParam = "profile-branch"
+	profileURLParam    = "profile-url"
+	profileBranchParam = "profile-branch"
+	newBranchParam     = "new-branch"
 )
 
 func MakeCmd() *cobra.Command {
-	opts := &profiles.ProfileOptions{}
+	opts := &operations.InstallOptions{
+		ProfileOptions: &profiles.ProfileOptions{},
+	}
 
 	cmd := &cobra.Command{
 		Use:   "install",
@@ -31,7 +34,7 @@ func MakeCmd() *cobra.Command {
 	}
 
 	cmd.Flags().StringVar(
-		&opts.ProfileURL,
+		&opts.ProfileOptions.ProfileURL,
 		profileURLParam,
 		"",
 		"URL for fetching the profile from e.g. https://github.com/weaveworks/nginx-profile.git",
@@ -39,22 +42,26 @@ func MakeCmd() *cobra.Command {
 	cmd.MarkFlagRequired(profileURLParam)
 
 	cmd.Flags().StringVar(
-		&opts.Branch,
-		branchNameParam,
+		&opts.ProfileOptions.Branch,
+		profileBranchParam,
 		"main",
-		"branch name within the profile repo to use for the HelmRelease",
+		"branch name within the profile repo to fetch",
 	)
 
+	cmd.Flags().StringVar(
+		&opts.NewBranchName,
+		newBranchParam,
+		"",
+		"new branch name to apply changes to e.g. test-branch",
+	)
+	cmd.MarkFlagRequired(newBranchParam)
 	return cmd
 }
 
-func generateProfileResources(opts *profiles.ProfileOptions) error {
+func generateProfileResources(opts *operations.InstallOptions) error {
 	cwd, err := os.Getwd()
 	if err != nil {
 		return fmt.Errorf("failed to get the working directory: %w", err)
 	}
-	return operations.InstallProfile(context.TODO(), cwd, &operations.InstallOptions{
-		ProfileOptions: opts,
-		NewBranchName:  "test-branch",
-	})
+	return operations.InstallProfile(context.TODO(), cwd, opts)
 }
