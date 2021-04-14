@@ -12,12 +12,7 @@ import (
 	"github.com/go-git/go-git/v5/plumbing/object"
 )
 
-// MakeTempGitRepo creates and returns a directory that has been initialised as a
-// Git repository, it also returns rooted Filesystem that can be used to
-// interact with the filesystem underneath.
-//
-// The directory is deleted at the end of the test.
-func MakeTempGitRepo(t *testing.T) (string, billy.Filesystem) {
+func MakeTempDir(t *testing.T) string {
 	t.Helper()
 	dir, err := ioutil.TempDir("", "askja")
 	if err != nil {
@@ -26,6 +21,17 @@ func MakeTempGitRepo(t *testing.T) (string, billy.Filesystem) {
 	t.Cleanup(func() {
 		os.RemoveAll(dir)
 	})
+	return dir
+}
+
+// MakeTempGitRepo creates and returns a directory that has been initialised as a
+// Git repository, it also returns rooted Filesystem that can be used to
+// interact with the filesystem underneath.
+//
+// The directory is deleted at the end of the test.
+func MakeTempGitRepo(t *testing.T) (string, billy.Filesystem) {
+	t.Helper()
+	dir := MakeTempDir(t)
 	r, err := git.PlainInit(dir, false)
 	if err != nil {
 		t.Fatal(err)
