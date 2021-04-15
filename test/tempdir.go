@@ -12,6 +12,8 @@ import (
 	"github.com/go-git/go-git/v5/plumbing/object"
 )
 
+// MakeTempDir creates a temporary directory that is automatically cleaned up
+// after the test finishes.
 func MakeTempDir(t *testing.T) string {
 	t.Helper()
 	dir, err := ioutil.TempDir("", "askja")
@@ -22,6 +24,41 @@ func MakeTempDir(t *testing.T) string {
 		os.RemoveAll(dir)
 	})
 	return dir
+}
+
+// MakeTempRepository returns a git.Repository with an initial commit.
+//
+// The directory is deleted at the end of the test.
+func MakeTempRepository(t *testing.T) *git.Repository {
+	t.Helper()
+	dir := MakeTempDir(t)
+	r, err := git.PlainInit(dir, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	w, err := r.Worktree()
+	if err != nil {
+		t.Fatal(err)
+	}
+	f, err := w.Filesystem.Create("README.md")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := f.Write([]byte("Just a test")); err != nil {
+		t.Fatal(err)
+	}
+	_, err = w.Add("README.md")
+	_, err = w.Commit("initial commit", &git.CommitOptions{
+		Author: &object.Signature{
+			Name:  "Testing",
+			Email: "test@example.com",
+			When:  time.Now(),
+		},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	return r
 }
 
 // MakeTempGitRepo creates and returns a directory that has been initialised as a
