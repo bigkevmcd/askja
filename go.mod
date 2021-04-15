@@ -12,6 +12,7 @@ require (
 	github.com/spf13/viper v1.7.1
 	github.com/weaveworks/profiles v0.0.0-20210330083943-94d298f39a05
 	gopkg.in/h2non/gock.v1 v1.0.16
+	k8s.io/api v0.20.5
 	k8s.io/apimachinery v0.20.5
 	sigs.k8s.io/yaml v1.2.0
 )

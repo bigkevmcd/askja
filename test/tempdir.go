@@ -29,7 +29,7 @@ func MakeTempDir(t *testing.T) string {
 // MakeTempRepository returns a git.Repository with an initial commit.
 //
 // The directory is deleted at the end of the test.
-func MakeTempRepository(t *testing.T) *git.Repository {
+func MakeTempRepository(t *testing.T) (*git.Repository, string) {
 	t.Helper()
 	dir := MakeTempDir(t)
 	r, err := git.PlainInit(dir, false)
@@ -58,7 +58,7 @@ func MakeTempRepository(t *testing.T) *git.Repository {
 	if err != nil {
 		t.Fatal(err)
 	}
-	return r
+	return r, dir
 }
 
 // MakeTempGitRepo creates and returns a directory that has been initialised as a

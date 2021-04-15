@@ -6,7 +6,9 @@ import (
 
 	"github.com/go-git/go-git/v5"
 	"github.com/go-git/go-git/v5/plumbing"
+	"github.com/google/go-cmp/cmp"
 	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"sigs.k8s.io/yaml"
 
@@ -40,9 +42,18 @@ func CommitFiles(wt *git.Worktree, files map[string]runtime.Object, msg string, 
 
 func TestCommitFiles(t *testing.T) {
 	files := map[string]runtime.Object{
-		"testing.yaml": &corev1.Secret{},
+		"testing.yaml": &corev1.Secret{
+			TypeMeta: metav1.TypeMeta{
+				APIVersion: "v1",
+				Kind:       "Secret",
+			},
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "testing",
+				Namespace: "testing",
+			},
+		},
 	}
-	r := test.MakeTempRepository(t)
+	r, dir := test.MakeTempRepository(t)
 	wt, err := r.Worktree()
 	wt.Checkout(&git.CheckoutOptions{
 		Branch: plumbing.NewBranchReferenceName("test-files"),
@@ -55,6 +66,22 @@ func TestCommitFiles(t *testing.T) {
 	opts := &git.CommitOptions{}
 	if err := CommitFiles(wt, files, "test commit", opts); err != nil {
 		t.Fatal(err)
+	}
+
+	head, err := r.Head()
+	if err != nil {
+		t.Fatal(err)
+	}
+	headCommit, err := r.CommitObject(head.Hash())
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := map[string][]byte{
+		"testing.yaml": []byte("apiVersion: v1\nkind: Secret\nmetadata:\n  creationTimestamp: null\n  name: testing\n  namespace: testing\n"),
+	}
+	committed := test.GetFilesInCommit(t, headCommit, dir)
+	if diff := cmp.Diff(want, committed); diff != "" {
+		t.Fatalf("failed to commit files:\n%s", diff)
 	}
 }
 
