@@ -56,10 +56,6 @@ func (r *Repository) CreateAndSwitchBranch(name string) error {
 	return nil
 }
 
-func (r *Repository) CommitFilesInBranch(branchName string, files map[string]runtime.Object) error {
-	return nil
-}
-
 // WriteFile writes data to the named file, creating it if necessary.
 // If the file does not exist, WriteFile creates it with permissions perm
 // (before umask); otherwise WriteFile truncates it before writing, without

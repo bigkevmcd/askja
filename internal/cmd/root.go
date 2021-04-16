@@ -3,6 +3,7 @@ package cmd
 import (
 	"log"
 
+	"github.com/bigkevmcd/askja/internal/cmd/helm"
 	"github.com/bigkevmcd/askja/internal/cmd/install"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
@@ -14,10 +15,12 @@ func init() {
 
 func makeRootCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "askja",
-		Short: "askja profiles installer",
+		Use:           "askja",
+		Short:         "askja profiles installer",
+		SilenceErrors: true,
 	}
 	cmd.AddCommand(install.MakeCmd())
+	cmd.AddCommand(helm.MakeCmd())
 	return cmd
 }
 
